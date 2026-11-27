@@ -11,7 +11,7 @@ permissions:
 jobs:
   publish:
     if: contains(github.event.head_commit.message, '[publish-release]')
-    name: Build and publish v1.0.5
+    name: Build and publish v1.0.6
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -54,9 +54,9 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.5
+          tag_name: v1.0.6
           target_commitish: main
-          name: AirPause v1.0.5
+          name: AirPause v1.0.6
           draft: false
           prerelease: false
           make_latest: true
@@ -79,6 +79,8 @@ jobs:
             **שיפורים בגרסה זו:** ספירה נפרדת של הודעות Apple Proximity type 0x07, הצגת דגימת HEX ייעודית של הודעות אלו, ובדיקות שמוודאות ש־Nearby Info type 0x10 אינו מזוהה בטעות כ-AirPods.
 
             **שיפורים בגרסה זו:** אבחון נפרד של פרסומות האוזניות `07 19` ושל הקייס `07 11`, כולל מונים ודגימות HEX עצמאיות, כדי לזהות האם Qin S1+ קולט את שידור האוזניות ולא רק את שידור הקייס.
+
+            **שיפורים בגרסה זו:** הצגת כל בלוק Apple manufacturer עד 31 בתים, הודעת Proximity 07 אחרונה גם אם אינה תואמת בדיוק ל-07 19, עוצמת אות RSSI וכתובת BLE מקוצרת בנפרד להודעות 07 19 ו-07 11 06.
 
             **הערה:** זהו APK שנבנה ונחתם במפתח Debug. בדיקות CI עברו, אך הזיהוי הפיזי ופקודות Pause/Play עדיין דורשים אימות על הטלפון והאוזניות בפועל.
           files: artifacts/AirPause-Android4.4.apk
