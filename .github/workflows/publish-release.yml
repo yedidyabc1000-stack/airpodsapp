@@ -11,7 +11,7 @@ permissions:
 jobs:
   publish:
     if: contains(github.event.head_commit.message, '[publish-release]')
-    name: Build and publish v1.0.1
+    name: Build and publish v1.0.2
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -54,9 +54,9 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.1
+          tag_name: v1.0.2
           target_commitish: main
-          name: AirPause v1.0.1
+          name: AirPause v1.0.2
           draft: false
           prerelease: false
           make_latest: true
@@ -71,6 +71,8 @@ jobs:
             **קובץ התקנה:** AirPause-Android4.4.apk
 
             **שיפורים בגרסה זו:** זיהוי BLE ללא המתנה לחיבור A2DP, תמיכה בהודעות proximity גם כאשר מזהה הדגם אינו מוכר, קביעת מצב בסיס מהפרסומת הראשונה ואימות שינוי לבישה בשתי פרסומות רצופות.
+
+            **שיפורים בגרסה זו:** ניטור ושחזור סריקת BLE ישנה עבור Qin S1+ / Android 4.4, מוני אבחון לשידורי BLE/Apple/AirPods, הפחתת עדכוני התראה מיותרים בזמן פרסומות חוזרות.
 
             **הערה:** זהו APK שנבנה ונחתם במפתח Debug. בדיקות CI עברו, אך הזיהוי הפיזי ופקודות Pause/Play עדיין דורשים אימות על הטלפון והאוזניות בפועל.
           files: artifacts/AirPause-Android4.4.apk
