@@ -444,7 +444,9 @@ public class MonitorService extends Service {
         update.putExtra(EXTRA_CONNECTED, connected);
         update.putExtra(EXTRA_SCAN_DIAGNOSTICS, diagnostics);
         update.putExtra(EXTRA_SCAN_RAW_HEX, rawHex);
-        update.putExtra(EXTRA_PROXIMITY_HEX, proximityHex);
+        update.putExtra(EXTRA_PROXIMITY_HEX, podsHex.length() > 0 ? podsHex : caseHex);
+        update.putExtra(EXTRA_PODS_HEX, podsHex);
+        update.putExtra(EXTRA_CASE_HEX, caseHex);
         sendBroadcast(update);
 
         if (mainHandler != null) {
