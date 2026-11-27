@@ -128,6 +128,62 @@ public final class AirPodsAdvertisementParser {
         return "";
     }
 
+    /**
+     * Returns the complete 07 19 advertisement emitted by an AirPod.
+     * This format contains the cleartext wear-state fields followed by
+     * the encrypted 16-byte tail.
+     */
+    public static String getAirPodsPodsMessageHex(byte[] scanRecord) {
+        return getSpecificProximityMessageHex(scanRecord, 0x19, 0x01);
+    }
+
+    /**
+     * Returns the complete 07 11 06 advertisement emitted by the case.
+     * The remaining 16 bytes are encrypted and do not expose wear state.
+     */
+    public static String getAirPodsCaseMessageHex(byte[] scanRecord) {
+        return getSpecificProximityMessageHex(scanRecord, 0x11, 0x06);
+    }
+
+    private static String getSpecificProximityMessageHex(byte[] scanRecord,
+                                                          int expectedLength,
+                                                          int expectedPayloadPrefix) {
+        byte[] data = findAppleManufacturerData(scanRecord);
+        if (data == null) {
+            return "";
+        }
+
+        int offset = 0;
+        while (offset + 2 <= data.length) {
+            int type = data[offset] & 0xFF;
+            int length = data[offset + 1] & 0xFF;
+            int end = offset + 2 + length;
+            if (end > data.length) {
+                break;
+            }
+            if (type == PROXIMITY_TYPE
+                    && length == expectedLength
+                    && (data[offset + 2] & 0xFF) == expectedPayloadPrefix) {
+                return toHex(data, offset, end);
+            }
+            if (end <= offset) {
+                break;
+            }
+            offset = end;
+        }
+
+        // Compatibility with Android stacks that prepend or shift bytes.
+        for (int i = 0; i + 3 <= data.length; i++) {
+            if ((data[i] & 0xFF) == PROXIMITY_TYPE
+                    && (data[i + 1] & 0xFF) == expectedLength
+                    && (data[i + 2] & 0xFF) == expectedPayloadPrefix
+                    && i + 2 + expectedLength <= data.length) {
+                return toHex(data, i, i + 2 + expectedLength);
+            }
+        }
+        return "";
+    }
+
     private static String toHex(byte[] data, int start, int end) {
         StringBuilder out = new StringBuilder();
         for (int i = start; i < end; i++) {
