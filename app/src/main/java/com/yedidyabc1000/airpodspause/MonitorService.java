@@ -33,6 +33,7 @@ public class MonitorService extends Service {
     public static final String EXTRA_EAR_STATE = "ear_state";
     public static final String EXTRA_CONNECTED = "connected";
     public static final String EXTRA_MODEL = "model";
+    public static final String EXTRA_SCAN_DIAGNOSTICS = "scan_diagnostics";
 
     private static final String CHANNEL_ID = "airpause_monitor";
     private static final int NOTIFICATION_ID = 4107;
@@ -53,6 +54,50 @@ public class MonitorService extends Service {
     private String currentModel = "";
     private PowerManager.WakeLock wakeLock;
     private Handler mainHandler;
+    private volatile long lastBleCallbackAt;
+    private long scanStartedAt;
+    private int blePacketCount;
+    private int applePacketCount;
+    private int airPodsPacketCount;
+    private int lastRssi;
+    private int scanRecoveryCount;
+    private boolean scanRestartPending;
+
+    private final Runnable scanWatchdog = new Runnable() {
+        @Override
+        public void run() {
+            if (mainHandler == null) {
+                return;
+            }
+
+            if (bluetoothAdapter != null && bluetoothAdapter.isEnabled()) {
+                if (!scanStarted) {
+                    startBleScan();
+                } else {
+                    long now = SystemClock.elapsedRealtime();
+                    long reference = lastBleCallbackAt == 0
+                            ? scanStartedAt : lastBleCallbackAt;
+                    if (now - reference >= 15000 && !scanRestartPending) {
+                        scanRestartPending = true;
+                        scanRecoveryCount++;
+                        setMessage("Qin S1+: לא התקבלו שידורי BLE במשך 15 שניות — מאתחל סריקה");
+                        stopBleScan();
+                        mainHandler.postDelayed(new Runnable() {
+                            @Override
+                            public void run() {
+                                scanRestartPending = false;
+                                startBleScan();
+                            }
+                        }, 1000);
+                    } else {
+                        publishState();
+                    }
+                }
+            }
+
+            mainHandler.postDelayed(this, 10000);
+        }
+    };
 
     private final BluetoothProfile.ServiceListener profileListener =
             new BluetoothProfile.ServiceListener() {
@@ -77,15 +122,26 @@ public class MonitorService extends Service {
             new BluetoothAdapter.LeScanCallback() {
                 @Override
                 public void onLeScan(BluetoothDevice device, int rssi, byte[] scanRecord) {
+                    long now = SystemClock.elapsedRealtime();
+                    lastBleCallbackAt = now;
                     AirPodsAdvertisementParser.Result result =
                             AirPodsAdvertisementParser.parseScanRecord(scanRecord);
+                    synchronized (LOCK) {
+                        blePacketCount++;
+                        lastRssi = rssi;
+                        if (AirPodsAdvertisementParser.containsAppleManufacturerData(scanRecord)) {
+                            applePacketCount++;
+                        }
+                        if (result != null) {
+                            airPodsPacketCount++;
+                        }
+                    }
                     if (result == null) {
                         return;
                     }
 
-                    // BLE presence and wear state are independent of A2DP profile
-                    // initialization. Do not delay detection while Android is still
-                    // bringing the audio profile up.
+                    // Do not wait for A2DP profile initialization before processing
+                    // an ear-state advertisement.
                     processAdvertisement(result);
                 }
             };
@@ -101,6 +157,7 @@ public class MonitorService extends Service {
                     startBleScan();
                 } else if (state == BluetoothAdapter.STATE_OFF) {
                     stopBleScan();
+                    resetEarTracking();
                     setMessage("Bluetooth כבוי");
                 }
             } else {
@@ -113,6 +170,8 @@ public class MonitorService extends Service {
     public void onCreate() {
         super.onCreate();
         mainHandler = new Handler(Looper.getMainLooper());
+        resetEarTracking();
+        mainHandler.postDelayed(scanWatchdog, 10000);
         createNotificationChannel();
         startForeground(NOTIFICATION_ID, buildNotification("ממתין לחיבור AirPods"));
 
@@ -178,11 +237,12 @@ public class MonitorService extends Service {
             return;
         }
 
-        resetEarTracking();
         try {
             scanStarted = bluetoothAdapter.startLeScan(scanCallback);
             if (scanStarted) {
-                setMessage("סריקת AirPods פעילה");
+                scanStartedAt = SystemClock.elapsedRealtime();
+                lastBleCallbackAt = 0;
+                setMessage("סריקת BLE פעילה — מחפש AirPods Pro 3");
             } else {
                 setMessage("סריקת Bluetooth לא התחילה; נסה להפעיל Bluetooth מחדש");
             }
@@ -242,7 +302,13 @@ public class MonitorService extends Service {
             return;
         }
 
+        String oldMessage;
+        String oldEarState;
+        String oldModel;
         synchronized (LOCK) {
+            oldMessage = currentMessage;
+            oldEarState = currentEarState;
+            oldModel = currentModel;
             currentModel = result.modelName;
             boolean bothInEar = result.areBothInEar();
 
@@ -302,7 +368,15 @@ public class MonitorService extends Service {
             }
         }
 
-        publishState();
+        boolean changed;
+        synchronized (LOCK) {
+            changed = !oldMessage.equals(currentMessage)
+                    || !oldEarState.equals(currentEarState)
+                    || !oldModel.equals(currentModel);
+        }
+        if (changed) {
+            publishState();
+        }
     }
 
     private void sendMediaKey(int keyCode) {
@@ -331,10 +405,16 @@ public class MonitorService extends Service {
         final String message;
         final String earState;
         final String model;
+        final String diagnostics;
         synchronized (LOCK) {
             message = currentMessage;
             earState = currentEarState;
             model = currentModel;
+            diagnostics = "BLE חבילות: " + blePacketCount
+                    + " | Apple: " + applePacketCount
+                    + " | AirPods: " + airPodsPacketCount
+                    + " | RSSI: " + lastRssi
+                    + " | אתחולי סריקה: " + scanRecoveryCount;
         }
 
         boolean connected = isA2dpAudioConnected();
@@ -344,6 +424,7 @@ public class MonitorService extends Service {
         update.putExtra(EXTRA_EAR_STATE, earState);
         update.putExtra(EXTRA_MODEL, model);
         update.putExtra(EXTRA_CONNECTED, connected);
+        update.putExtra(EXTRA_SCAN_DIAGNOSTICS, diagnostics);
         sendBroadcast(update);
 
         if (mainHandler != null) {
@@ -399,6 +480,9 @@ public class MonitorService extends Service {
 
     @Override
     public void onDestroy() {
+        if (mainHandler != null) {
+            mainHandler.removeCallbacks(scanWatchdog);
+        }
         stopBleScan();
         if (receiverRegistered) {
             try {
