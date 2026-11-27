@@ -141,6 +141,8 @@ public class AirPodsAdvertisementParserTest {
         assertEquals("", AirPodsAdvertisementParser.getAirPodsPodsMessageHex(caseRecord));
         assertTrue(AirPodsAdvertisementParser.getAirPodsCaseMessageHex(caseRecord)
                 .startsWith("07 11 06"));
+        assertTrue(AirPodsAdvertisementParser.getAirPodsProximityMessageHex(caseRecord)
+                .startsWith("07 11 06"));
         assertNull(AirPodsAdvertisementParser.parseScanRecord(caseRecord));
     }
 
