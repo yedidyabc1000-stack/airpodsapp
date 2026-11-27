@@ -5,8 +5,14 @@ import java.util.Arrays;
 /**
  * Reads Apple's public BLE proximity advertisement.
  *
- * Manufacturer data is carried under Apple company identifier 0x004C.
- * The 0x07/0x19/0x01 header is followed by the model code and public status byte.
+ * Apple manufacturer data (company id 0x004C) contains one or more
+ * Continuity messages. The AirPods public proximity message starts with
+ * 07 19 01, followed by model code and the public status byte.
+ *
+ * Ear-state decoding follows the public status-bit layout used by the
+ * DualApplePods implementation in CAPod:
+ * bit 5 = primary pod is left, bit 6 = this advertiser is in the case,
+ * and bits 1/3 = the two pods' in-ear states (orientation-dependent).
  */
 public final class AirPodsAdvertisementParser {
     private static final int APPLE_COMPANY_ID = 0x004C;
@@ -25,23 +31,59 @@ public final class AirPodsAdvertisementParser {
         return parseManufacturerData(manufacturerData);
     }
 
+    /**
+     * Parses a manufacturer-data block. Some Apple blocks may contain more
+     * than one Continuity message, so walk the length-prefixed messages
+     * instead of assuming the first message is the only one.
+     */
     public static Result parseManufacturerData(byte[] data) {
-        if (data == null || data.length < 9) {
-            return null;
-        }
-        if ((data[0] & 0xFF) != PROXIMITY_TYPE
-                || (data[1] & 0xFF) != PROXIMITY_LENGTH
-                || (data[2] & 0xFF) != PUBLIC_PREFIX) {
+        if (data == null) {
             return null;
         }
 
-        int modelCode = ((data[3] & 0xFF) << 8) | (data[4] & 0xFF);
+        int offset = 0;
+        while (offset + 2 <= data.length) {
+            int type = data[offset] & 0xFF;
+            int length = data[offset + 1] & 0xFF;
+            int payloadStart = offset + 2;
+            int messageEnd = payloadStart + length;
+
+            if (length < 7 || messageEnd > data.length) {
+                break;
+            }
+
+            if (type == PROXIMITY_TYPE
+                    && length >= 7
+                    && (data[payloadStart] & 0xFF) == PUBLIC_PREFIX) {
+                return parsePublicProximityMessage(data, payloadStart, length);
+            }
+
+            offset = messageEnd;
+        }
+        return null;
+    }
+
+    private static Result parsePublicProximityMessage(byte[] data,
+                                                        int payloadStart,
+                                                        int payloadLength) {
+        // Public payload layout: prefix, model(2), status, battery(3), lid,
+        // color, suffix. At least through suffix is required for this parser.
+        if (payloadLength < 9) {
+            return null;
+        }
+
+        int modelCode = ((data[payloadStart + 1] & 0xFF) << 8)
+                | (data[payloadStart + 2] & 0xFF);
+
+        // This build is configured for the user's AirPods Pro 3. Do not
+        // reject otherwise valid Apple proximity messages just because a
+        // model identifier is new, absent from our table, or clone-specific.
         String modelName = getModelName(modelCode);
         if (modelName == null) {
-            return null;
+            modelName = "AirPods Pro 3 (מצב תאימות)";
         }
 
-        int status = data[5] & 0xFF;
+        int status = data[payloadStart + 3] & 0xFF;
         boolean broadcasterIsInCase = (status & (1 << 6)) != 0;
         boolean primaryIsLeft = (status & (1 << 5)) != 0;
         boolean valuesFlipped = !primaryIsLeft;
@@ -97,7 +139,7 @@ public final class AirPodsAdvertisementParser {
             case 0x0E20: return "AirPods Pro דור 1";
             case 0x1420: return "AirPods Pro דור 2";
             case 0x2420: return "AirPods Pro 2 USB-C";
-            case 0x2720: return "AirPods Pro דור 3";
+            case 0x2720: return "AirPods Pro 3";
             default: return null;
         }
     }
