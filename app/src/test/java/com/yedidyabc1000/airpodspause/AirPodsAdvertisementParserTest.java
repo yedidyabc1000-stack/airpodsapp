@@ -119,6 +119,21 @@ public class AirPodsAdvertisementParserTest {
     }
 
     @Test
+    public void separatesPodAndCaseAdvertisements() {
+        byte[] podsRecord = scanRecord(message(0x2720, 0x2B));
+        byte[] caseRecord = scanRecord(caseMessage());
+
+        assertTrue(AirPodsAdvertisementParser.getAirPodsPodsMessageHex(podsRecord)
+                .startsWith("07 19 01 27 20 2B"));
+        assertEquals("", AirPodsAdvertisementParser.getAirPodsCaseMessageHex(podsRecord));
+
+        assertEquals("", AirPodsAdvertisementParser.getAirPodsPodsMessageHex(caseRecord));
+        assertTrue(AirPodsAdvertisementParser.getAirPodsCaseMessageHex(caseRecord)
+                .startsWith("07 11 06"));
+        assertNull(AirPodsAdvertisementParser.parseScanRecord(caseRecord));
+    }
+
+    @Test
     public void genericAppleNearbyInfoIsNotCountedAsAirPodsProximity() {
         byte[] nearbyInfo = new byte[]{
                 0x10, 0x06, 0x0B, 0x1D, (byte) 0xE5, 0x25, 0x01, 0x48
