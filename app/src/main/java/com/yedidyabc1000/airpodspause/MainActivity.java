@@ -37,6 +37,7 @@ public class MainActivity extends Activity {
     private TextView earText;
     private TextView modelText;
     private TextView scanText;
+    private TextView rawScanText;
     private Button monitorButton;
     private Button resumeButton;
     private SharedPreferences preferences;
@@ -51,6 +52,7 @@ public class MainActivity extends Activity {
             String ear = intent.getStringExtra(MonitorService.EXTRA_EAR_STATE);
             String model = intent.getStringExtra(MonitorService.EXTRA_MODEL);
             String diagnostics = intent.getStringExtra(MonitorService.EXTRA_SCAN_DIAGNOSTICS);
+            String rawHex = intent.getStringExtra(MonitorService.EXTRA_SCAN_RAW_HEX);
             boolean connected = intent.getBooleanExtra(MonitorService.EXTRA_CONNECTED, false);
             if (message != null) statusText.setText(message);
             connectionText.setText(connected ? "מחובר: התקן שמע Bluetooth"
@@ -69,6 +71,9 @@ public class MainActivity extends Activity {
                     ? "דגם: עדיין לא זוהה" : "דגם: " + model);
             if (diagnostics != null) {
                 scanText.setText(diagnostics);
+            }
+            if (rawHex != null) {
+                rawScanText.setText("Apple HEX: " + rawHex);
             }
         }
     };
@@ -176,6 +181,13 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams scanParams = fullWidth();
         scanParams.topMargin = dp(8);
         card.addView(scanText, scanParams);
+
+        rawScanText = text("Apple HEX: ממתין לפרסומת Apple",
+                10, Color.rgb(126, 147, 176), false);
+        rawScanText.setSingleLine(false);
+        LinearLayout.LayoutParams rawParams = fullWidth();
+        rawParams.topMargin = dp(5);
+        card.addView(rawScanText, rawParams);
 
         monitorButton = new Button(this);
         monitorButton.setTextSize(18);
