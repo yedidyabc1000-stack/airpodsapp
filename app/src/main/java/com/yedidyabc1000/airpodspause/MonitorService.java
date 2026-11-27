@@ -476,7 +476,7 @@ public class MonitorService extends Service {
                     + " | Apple: " + applePacketCount
                     + " | אוזניות 07 19: " + podsAdvertisementCount
                     + " | 07 11 06: " + caseAdvertisementCount
-                    + " | הודעות Apple 07: " + proximityMessageCount
+                    + " | הודעות Proximity תקינות: " + proximityMessageCount
                     + " | AirPods מפוענחות: " + airPodsPacketCount
                     + " | RSSI אחרון כללי: " + lastRssi
                     + " | אתחולי סריקה: " + scanRecoveryCount;
