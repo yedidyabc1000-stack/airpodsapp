@@ -36,6 +36,7 @@ public class MainActivity extends Activity {
     private TextView connectionText;
     private TextView earText;
     private TextView modelText;
+    private TextView scanText;
     private Button monitorButton;
     private Button resumeButton;
     private SharedPreferences preferences;
@@ -49,6 +50,7 @@ public class MainActivity extends Activity {
             String message = intent.getStringExtra(MonitorService.EXTRA_MESSAGE);
             String ear = intent.getStringExtra(MonitorService.EXTRA_EAR_STATE);
             String model = intent.getStringExtra(MonitorService.EXTRA_MODEL);
+            String diagnostics = intent.getStringExtra(MonitorService.EXTRA_SCAN_DIAGNOSTICS);
             boolean connected = intent.getBooleanExtra(MonitorService.EXTRA_CONNECTED, false);
             if (message != null) statusText.setText(message);
             connectionText.setText(connected ? "מחובר: התקן שמע Bluetooth"
@@ -65,6 +67,9 @@ public class MainActivity extends Activity {
             }
             modelText.setText(model == null || model.length() == 0
                     ? "דגם: עדיין לא זוהה" : "דגם: " + model);
+            if (diagnostics != null) {
+                scanText.setText(diagnostics);
+            }
         }
     };
 
@@ -165,6 +170,12 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams modelParams = fullWidth();
         modelParams.topMargin = dp(8);
         card.addView(modelText, modelParams);
+
+        scanText = text("BLE חבילות: 0 | Apple: 0 | AirPods: 0",
+                11, Color.rgb(126, 147, 176), false);
+        LinearLayout.LayoutParams scanParams = fullWidth();
+        scanParams.topMargin = dp(8);
+        card.addView(scanText, scanParams);
 
         monitorButton = new Button(this);
         monitorButton.setTextSize(18);
