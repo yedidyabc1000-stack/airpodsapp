@@ -1,0 +1,74 @@
+name: Publish AirPause Release
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    if: contains(github.event.head_commit.message, '[publish-release]')
+    name: Build and publish v1.0.0
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      ANDROID_HOME: /usr/local/lib/android/sdk
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -x "$SDKMANAGER"
+          echo "$(dirname "$SDKMANAGER")" >> "$GITHUB_PATH"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          printf 'y\n%.0s' {1..100} | "$SDKMANAGER" --licenses
+          "$SDKMANAGER" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Run tests and build APK
+        run: gradle testDebugUnitTest assembleDebug --no-daemon --stacktrace
+
+      - name: Prepare release APK
+        run: |
+          mkdir -p artifacts
+          cp app/build/outputs/apk/debug/app-debug.apk artifacts/AirPause-Android4.4.apk
+          ls -lh artifacts/AirPause-Android4.4.apk
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.0
+          target_commitish: main
+          name: AirPause v1.0.0
+          draft: false
+          prerelease: false
+          make_latest: true
+          generate_release_notes: false
+          fail_on_unmatched_files: true
+          overwrite_files: true
+          body: |
+            AirPause — אפליקציית Android לזיהוי מצב לבישה של AirPods ולהשהיית/חידוש מוזיקה.
+
+            **תאימות יעד:** Android 4.4 (API 19) ומעלה.
+
+            **קובץ התקנה:** AirPause-Android4.4.apk
+
+            **הערה:** זהו APK שנבנה ונחתם במפתח Debug. הזיהוי הפיזי תלוי בדגם ה-AirPods ובשידורי ה-Bluetooth שלו; יש לבדוק במכשיר ובאוזניות בפועל.
+          files: artifacts/AirPause-Android4.4.apk
