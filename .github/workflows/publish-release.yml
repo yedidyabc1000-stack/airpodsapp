@@ -11,7 +11,7 @@ permissions:
 jobs:
   publish:
     if: contains(github.event.head_commit.message, '[publish-release]')
-    name: Build and publish v1.0.9
+    name: Build and publish v1.0.10
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -54,9 +54,9 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.9
+          tag_name: v1.0.10
           target_commitish: main
-          name: AirPause v1.0.9
+          name: AirPause v1.0.10
           draft: false
           prerelease: false
           make_latest: true
@@ -87,6 +87,9 @@ jobs:
             **שיפורים בגרסה 1.0.8:** פענוח Continuity מחמיר שמקבל רק מסגרת מלאה `07 19 01`; מסגרת `07 11 06` אינה מסווגת עוד כקייס. בחירת פרסומת לפי המשדר החזק והחוזר ביותר בחלון של 10 שניות, שימוש בביטי מצב גם בפרסומות שבהן מסומן משדר מתוך הקייס, ורענון אבחון אחת ל־5 שניות.
 
             **שיפור אבחון בגרסה 1.0.9:** נוספה הצגת דגימת BLE גולמית אחרונה (עד 31 בתים) ועוצמת RSSI, גם כאשר לא מזוהה עדיין מסגרת Apple. הבתים מוצגים מופרדים במקפים כדי לאפשר העתקה ובדיקה.
+
+
+            **שיפורים בגרסה 1.0.10:** מונה ודגימת HEX נפרדים ל־Apple Service Data מסוג `FD44`, כדי להבחין בין שידורי Find My לבין Manufacturer Data של Apple המשמש לפענוח Proximity. צומצם הפענוח לדגם AirPods Pro 3 המזוהה במפורש (`0x2720`), ובוטלה דרישת שתי קליטות מאותה כתובת BLE לצורך זיהוי ראשוני.
 
             **הערה:** זהו APK שנבנה ונחתם במפתח Debug. בדיקות CI עברו, אך הזיהוי הפיזי ופקודות Pause/Play עדיין דורשים אימות על הטלפון והאוזניות בפועל.
           files: artifacts/AirPause-Android4.4.apk
