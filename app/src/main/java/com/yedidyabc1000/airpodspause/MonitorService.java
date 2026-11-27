@@ -38,6 +38,9 @@ public class MonitorService extends Service {
     public static final String EXTRA_PROXIMITY_HEX = "proximity_hex";
     public static final String EXTRA_PODS_HEX = "pods_hex";
     public static final String EXTRA_CASE_HEX = "case_hex";
+    public static final String EXTRA_PROXIMITY_RAW_HEX = "proximity_raw_hex";
+    public static final String EXTRA_PODS_INFO = "pods_info";
+    public static final String EXTRA_CASE_INFO = "case_info";
 
     private static final String CHANNEL_ID = "airpause_monitor";
     private static final int NOTIFICATION_ID = 4107;
@@ -65,8 +68,16 @@ public class MonitorService extends Service {
     private int airPodsPacketCount;
     private int podsAdvertisementCount;
     private int caseAdvertisementCount;
+    private int proximityMessageCount;
     private String latestPodsHex = "עדיין לא נקלט שידור אוזניות 07 19";
-    private String latestCaseHex = "עדיין לא נקלט שידור קייס 07 11";
+    private String latestCaseHex = "עדיין לא נקלט שידור בפורמט 07 11 06";
+    private String latestProximityHex = "עדיין לא נקלטה הודעת Apple מסוג 07";
+    private String latestPodsAddress = "";
+    private String latestCaseAddress = "";
+    private int latestPodsRssi;
+    private int latestCaseRssi;
+    private long latestPodsAt;
+    private long latestCaseAt;
     private int lastRssi;
     private int scanRecoveryCount;
     private boolean scanRestartPending;
@@ -142,17 +153,39 @@ public class MonitorService extends Service {
                             applePacketCount++;
                             latestAppleHex =
                                     AirPodsAdvertisementParser.getAppleManufacturerDataHex(scanRecord);
+                            String anyProximityHex =
+                                    AirPodsAdvertisementParser.getAirPodsProximityMessageHex(scanRecord);
+                            if (anyProximityHex.length() > 0) {
+                                proximityMessageCount++;
+                                latestProximityHex = anyProximityHex;
+                            }
+
+                            String advertiserAddress = "";
+                            if (device != null) {
+                                try {
+                                    advertiserAddress = device.getAddress();
+                                } catch (RuntimeException ignored) {
+                                    advertiserAddress = "";
+                                }
+                            }
+
                             String podsHex =
                                     AirPodsAdvertisementParser.getAirPodsPodsMessageHex(scanRecord);
                             if (podsHex.length() > 0) {
                                 podsAdvertisementCount++;
                                 latestPodsHex = podsHex;
+                                latestPodsRssi = rssi;
+                                latestPodsAddress = advertiserAddress;
+                                latestPodsAt = now;
                             }
                             String caseHex =
                                     AirPodsAdvertisementParser.getAirPodsCaseMessageHex(scanRecord);
                             if (caseHex.length() > 0) {
                                 caseAdvertisementCount++;
                                 latestCaseHex = caseHex;
+                                latestCaseRssi = rssi;
+                                latestCaseAddress = advertiserAddress;
+                                latestCaseAt = now;
                             }
                         }
                         if (result != null) {
@@ -432,6 +465,9 @@ public class MonitorService extends Service {
         final String rawHex;
         final String podsHex;
         final String caseHex;
+        final String proximityRawHex;
+        final String podsInfo;
+        final String caseInfo;
         synchronized (LOCK) {
             message = currentMessage;
             earState = currentEarState;
@@ -439,13 +475,19 @@ public class MonitorService extends Service {
             diagnostics = "BLE חבילות: " + blePacketCount
                     + " | Apple: " + applePacketCount
                     + " | אוזניות 07 19: " + podsAdvertisementCount
-                    + " | קייס 07 11: " + caseAdvertisementCount
-                    + " | AirPods תקינים: " + airPodsPacketCount
-                    + " | RSSI: " + lastRssi
+                    + " | 07 11 06: " + caseAdvertisementCount
+                    + " | הודעות Apple 07: " + proximityMessageCount
+                    + " | AirPods מפוענחות: " + airPodsPacketCount
+                    + " | RSSI אחרון כללי: " + lastRssi
                     + " | אתחולי סריקה: " + scanRecoveryCount;
             rawHex = latestAppleHex;
             podsHex = latestPodsHex;
             caseHex = latestCaseHex;
+            proximityRawHex = latestProximityHex;
+            podsInfo = formatAdvertiserInfo(podsAdvertisementCount, latestPodsRssi,
+                    latestPodsAddress, latestPodsAt);
+            caseInfo = formatAdvertiserInfo(caseAdvertisementCount, latestCaseRssi,
+                    latestCaseAddress, latestCaseAt);
         }
 
         boolean connected = isA2dpAudioConnected();
@@ -460,6 +502,9 @@ public class MonitorService extends Service {
         update.putExtra(EXTRA_PROXIMITY_HEX, podsHex.length() > 0 ? podsHex : caseHex);
         update.putExtra(EXTRA_PODS_HEX, podsHex);
         update.putExtra(EXTRA_CASE_HEX, caseHex);
+        update.putExtra(EXTRA_PROXIMITY_RAW_HEX, proximityRawHex);
+        update.putExtra(EXTRA_PODS_INFO, podsInfo);
+        update.putExtra(EXTRA_CASE_INFO, caseInfo);
         sendBroadcast(update);
 
         if (mainHandler != null) {
@@ -474,6 +519,19 @@ public class MonitorService extends Service {
                 }
             });
         }
+    }
+
+    private String formatAdvertiserInfo(int count, int rssi, String address, long seenAt) {
+        if (count == 0 || seenAt == 0) {
+            return "טרם נקלט שידור כזה";
+        }
+        long ageSeconds = Math.max(0, (SystemClock.elapsedRealtime() - seenAt) / 1000L);
+        String shortAddress = address == null || address.length() == 0
+                ? "לא זמינה"
+                : address.substring(Math.max(0, address.length() - 5));
+        return "קליטות: " + count + " | RSSI: " + rssi + " dBm"
+                + " | סוף כתובת BLE: " + shortAddress
+                + " | נקלט לפני: " + ageSeconds + " שנ׳";
     }
 
     private Notification buildNotification(String message) {
