@@ -27,6 +27,26 @@ public class AirPodsAdvertisementParserTest {
         return data;
     }
 
+
+    @Test
+    public void identifiesAppleFd44ServiceDataWithoutTreatingItAsAirPodsProximity() {
+        byte[] record = new byte[]{0x04, 0x16, 0x44, (byte) 0xFD, 0x4C};
+
+        assertEquals("44 FD 4C",
+                AirPodsAdvertisementParser.getAppleFindMyServiceDataHex(record));
+        assertFalse(AirPodsAdvertisementParser.containsAppleManufacturerData(record));
+        assertNull(AirPodsAdvertisementParser.parseScanRecord(record));
+    }
+
+    @Test
+    public void doesNotTreatMicrosoftManufacturerDataAsApple() {
+        byte[] record = new byte[]{0x04, (byte) 0xFF, 0x06, 0x00, 0x01};
+
+        assertFalse(AirPodsAdvertisementParser.containsAppleManufacturerData(record));
+        assertEquals("", AirPodsAdvertisementParser.getAppleFindMyServiceDataHex(record));
+        assertNull(AirPodsAdvertisementParser.parseScanRecord(record));
+    }
+
     @Test
     public void parsesAirPodsPro3WithBothPodsInEar() {
         AirPodsAdvertisementParser.Result result =
@@ -61,13 +81,9 @@ public class AirPodsAdvertisementParserTest {
     }
 
     @Test
-    public void acceptsValidPublicMessageWithoutRequiringKnownModelCode() {
-        AirPodsAdvertisementParser.Result result =
-                AirPodsAdvertisementParser.parseManufacturerData(message(0x5555, 0x2B));
-
-        assertNotNull(result);
-        assertEquals("AirPods Pro 3 (מצב תאימות)", result.modelName);
-        assertTrue(result.areBothInEar());
+    public void rejectsUnknownAndNonTargetModelCodes() {
+        assertNull(AirPodsAdvertisementParser.parseManufacturerData(message(0x5555, 0x2B)));
+        assertNull(AirPodsAdvertisementParser.parseManufacturerData(message(0x1420, 0x2B)));
     }
 
     @Test

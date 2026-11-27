@@ -5,10 +5,12 @@ import java.util.Iterator;
 import java.util.Map;
 
 /**
- * Chooses a repeated, strongest AirPods advertiser from a short rolling BLE window.
+ * Chooses the strongest recent AirPods advertiser from a short rolling BLE window.
  *
- * Android's BLE advertiser address may be randomized, so this is a proximity heuristic,
- * not cryptographic proof that the beacon belongs to the paired audio device.
+ * The first valid advertisement from the only/current strongest advertiser is accepted.
+ * Ear-state transitions are separately debounced in MonitorService. Android's BLE
+ * advertiser address may be randomized, so this remains a proximity heuristic,
+ * not proof that the beacon belongs to the paired audio device.
  */
 public final class AirPodsAdvertiserSelector {
     private static final long WINDOW_MILLIS = 10000L;
@@ -35,7 +37,6 @@ public final class AirPodsAdvertiserSelector {
             current = new Observation(rssi, nowMillis);
             observations.put(address, current);
         } else {
-            current.samples++;
             current.lastSeenAt = nowMillis;
             current.bestRssi = Math.max(current.bestRssi, rssi);
         }
@@ -69,7 +70,7 @@ public final class AirPodsAdvertiserSelector {
             }
         }
 
-        return address.equals(strongestAddress) && current.samples >= 2;
+        return address.equals(strongestAddress);
     }
 
     public synchronized void reset() {
@@ -78,7 +79,6 @@ public final class AirPodsAdvertiserSelector {
 
     private static final class Observation {
         int bestRssi;
-        int samples = 1;
         long lastSeenAt;
 
         Observation(int rssi, long nowMillis) {

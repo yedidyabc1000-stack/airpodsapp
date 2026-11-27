@@ -16,6 +16,7 @@ import java.util.Arrays;
  */
 public final class AirPodsAdvertisementParser {
     private static final int APPLE_COMPANY_ID = 0x004C;
+    private static final int APPLE_FIND_MY_SERVICE_UUID = 0xFD44;
     private static final int PROXIMITY_TYPE = 0x07;
     private static final int PROXIMITY_LENGTH = 0x19;
     private static final int PUBLIC_PREFIX = 0x01;
@@ -95,6 +96,37 @@ public final class AirPodsAdvertisementParser {
     }
 
     /**
+     * Returns the payload of Apple's 16-bit FD44 Service Data field, if present.
+     * This is a separate BLE service format and is not an AirPods ear-state message.
+     */
+    public static String getAppleFindMyServiceDataHex(byte[] scanRecord) {
+        if (scanRecord == null) {
+            return "";
+        }
+        int position = 0;
+        while (position < scanRecord.length) {
+            int fieldLength = scanRecord[position] & 0xFF;
+            if (fieldLength == 0) {
+                break;
+            }
+            int fieldEnd = position + 1 + fieldLength;
+            if (fieldEnd > scanRecord.length || fieldLength < 1) {
+                break;
+            }
+            int fieldType = scanRecord[position + 1] & 0xFF;
+            if (fieldType == 0x16 && fieldLength >= 3) {
+                int serviceUuid = (scanRecord[position + 2] & 0xFF)
+                        | ((scanRecord[position + 3] & 0xFF) << 8);
+                if (serviceUuid == APPLE_FIND_MY_SERVICE_UUID) {
+                    return toHex(scanRecord, position + 2, fieldEnd);
+                }
+            }
+            position = fieldEnd;
+        }
+        return "";
+    }
+
+    /**
      * 07 11 06 is not the public AirPods Proximity format used to decode wear
      * state. Keep this compatibility method returning empty so older UI code
      * cannot mistake an unverified Apple Continuity frame for the charging case.
@@ -170,12 +202,14 @@ public final class AirPodsAdvertisementParser {
         int modelCode = ((data[payloadStart + 1] & 0xFF) << 8)
                 | (data[payloadStart + 2] & 0xFF);
 
-        // This build is configured for the user's AirPods Pro 3. Do not
-        // reject otherwise valid Apple proximity messages just because a
-        // model identifier is new, absent from our table, or clone-specific.
+        // This app is configured for AirPods Pro 3 only. Never interpret an
+        // unknown or different Apple model as the user's target headphones.
+        if (modelCode != 0x2720) {
+            return null;
+        }
         String modelName = getModelName(modelCode);
         if (modelName == null) {
-            modelName = "AirPods Pro 3 (מצב תאימות)";
+            return null;
         }
 
         int status = data[payloadStart + 3] & 0xFF;

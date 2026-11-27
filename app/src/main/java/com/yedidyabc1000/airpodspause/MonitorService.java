@@ -68,6 +68,8 @@ public class MonitorService extends Service {
     private long scanStartedAt;
     private int blePacketCount;
     private int applePacketCount;
+    private int appleFindMyServicePacketCount;
+    private String latestAppleFindMyServiceHex = "טרם נקלט שירות FD44";
     private int airPodsPacketCount;
     private int podsAdvertisementCount;
     private int caseAdvertisementCount;
@@ -158,6 +160,12 @@ public class MonitorService extends Service {
                         lastRssi = rssi;
                         latestBleRawHex = formatRawScanRecord(scanRecord);
                         latestBleRawRssi = rssi;
+                        String findMyServiceHex =
+                                AirPodsAdvertisementParser.getAppleFindMyServiceDataHex(scanRecord);
+                        if (findMyServiceHex.length() > 0) {
+                            appleFindMyServicePacketCount++;
+                            latestAppleFindMyServiceHex = findMyServiceHex;
+                        }
                         if (AirPodsAdvertisementParser.containsAppleManufacturerData(scanRecord)) {
                             applePacketCount++;
                             latestAppleHex =
@@ -215,8 +223,8 @@ public class MonitorService extends Service {
                         boolean publishWaiting = false;
                         synchronized (LOCK) {
                             if (!hasEarBaseline
-                                    && !"נמצא שידור AirPods — מוודא משדר חוזר וחזק".equals(currentMessage)) {
-                                currentMessage = "נמצא שידור AirPods — מוודא משדר חוזר וחזק";
+                                    && !"נמצא שידור AirPods — בודק את המשדר החזק ביותר".equals(currentMessage)) {
+                                currentMessage = "נמצא שידור AirPods — בודק את המשדר החזק ביותר";
                                 publishWaiting = true;
                             }
                         }
@@ -521,7 +529,9 @@ public class MonitorService extends Service {
                     + " | הודעות Proximity תקינות: " + proximityMessageCount
                     + " | AirPods מפוענחות: " + airPodsPacketCount
                     + " | RSSI אחרון כללי: " + lastRssi
-                    + " | אתחולי סריקה: " + scanRecoveryCount;
+                    + " | אתחולי סריקה: " + scanRecoveryCount
+                    + " | Apple FD44: " + appleFindMyServicePacketCount
+                    + " | FD44 HEX: " + latestAppleFindMyServiceHex;
             rawHex = latestAppleHex;
             bleRawHex = latestBleRawHex + " | RSSI: " + latestBleRawRssi + " dBm";
             podsHex = latestPodsHex;
