@@ -147,6 +147,23 @@ public class AirPodsAdvertisementParserTest {
     }
 
     @Test
+    public void rejectsRandom07ByteWithImpossibleLengthAsProximity() {
+        byte[] falsePositive = new byte[]{
+                0x09, 0x08, 0x13, (byte) 0xF0, (byte) 0xAC, 0x14, 0x0A,
+                0x04, 0x1B, 0x58, 0x16, 0x08, 0x00, (byte) 0x94,
+                0x30, (byte) 0xC6, 0x64, 0x7C, 0x53, 0x66,
+                0x07, 0x38, 0x1F, (byte) 0x9E, 0x1F, (byte) 0xB5,
+                (byte) 0xF4, 0x1F, 0x6E
+        };
+        byte[] record = scanRecord(falsePositive);
+
+        assertEquals("", AirPodsAdvertisementParser.getAirPodsProximityMessageHex(record));
+        assertEquals("", AirPodsAdvertisementParser.getAirPodsPodsMessageHex(record));
+        assertEquals("", AirPodsAdvertisementParser.getAirPodsCaseMessageHex(record));
+        assertNull(AirPodsAdvertisementParser.parseScanRecord(record));
+    }
+
+    @Test
     public void genericAppleNearbyInfoIsNotCountedAsAirPodsProximity() {
         byte[] nearbyInfo = new byte[]{
                 0x10, 0x06, 0x0B, 0x1D, (byte) 0xE5, 0x25, 0x01, 0x48
