@@ -46,7 +46,9 @@ public final class AirPodsAdvertisementParser {
             return null;
         }
 
-        // First try the normal length-prefixed Continuity message layout.
+        // Decode only length-framed Continuity messages. Do not search arbitrary
+        // byte offsets: a random 07 19 01 sequence inside another Apple message
+        // is not proof that the frame is an AirPods advertisement.
         int offset = 0;
         while (offset + 2 <= data.length) {
             int type = data[offset] & 0xFF;
@@ -54,34 +56,17 @@ public final class AirPodsAdvertisementParser {
             int payloadStart = offset + 2;
             int messageEnd = payloadStart + length;
 
-            if (messageEnd > data.length) {
+            if (length == 0 || messageEnd > data.length) {
                 break;
             }
 
             if (type == PROXIMITY_TYPE
-                    && length >= 9
+                    && length == PROXIMITY_LENGTH
                     && (data[payloadStart] & 0xFF) == PUBLIC_PREFIX) {
                 return parsePublicProximityMessage(data, payloadStart, length);
             }
 
-            if (messageEnd <= offset) {
-                break;
-            }
-            // Other Continuity messages may be shorter than the proximity
-            // message; skip them by their advertised length.
             offset = messageEnd;
-        }
-
-        // Some older Bluetooth stacks expose manufacturer bytes with an
-        // unexpected prefix or a shifted boundary. As a compatibility fallback,
-        // look for the complete 07 19 01 proximity signature inside the block.
-        for (int i = 0; i + 11 <= data.length; i++) {
-            if ((data[i] & 0xFF) == PROXIMITY_TYPE
-                    && (data[i + 1] & 0xFF) == PROXIMITY_LENGTH
-                    && (data[i + 2] & 0xFF) == PUBLIC_PREFIX
-                    && i + 2 + PROXIMITY_LENGTH <= data.length) {
-                return parsePublicProximityMessage(data, i + 2, PROXIMITY_LENGTH);
-            }
         }
         return null;
     }
@@ -96,29 +81,26 @@ public final class AirPodsAdvertisementParser {
      * A random 0x07 byte inside manufacturer data is not sufficient evidence:
      * the Continuity length and the format-specific public prefix must match.
      */
-    public static String getAirPodsProximityMessageHex(byte[] scanRecord) {
-        String podsMessage = getAirPodsPodsMessageHex(scanRecord);
-        if (podsMessage.length() > 0) {
-            return podsMessage;
-        }
-        return getAirPodsCaseMessageHex(scanRecord);
-    }
-
     /**
-     * Returns the complete 07 19 advertisement emitted by an AirPod.
-     * This format contains the cleartext wear-state fields followed by
-     * the encrypted 16-byte tail.
+     * Returns a complete, length-framed public AirPods proximity advertisement.
+     * CAPod and OpenPods both validate Continuity type 0x07, payload length 0x19,
+     * and public payload prefix 0x01 before interpreting wear-state bits.
      */
+    public static String getAirPodsProximityMessageHex(byte[] scanRecord) {
+        return getAirPodsPodsMessageHex(scanRecord);
+    }
+
     public static String getAirPodsPodsMessageHex(byte[] scanRecord) {
-        return getSpecificProximityMessageHex(scanRecord, 0x19, 0x01);
+        return getSpecificProximityMessageHex(scanRecord, PROXIMITY_LENGTH, PUBLIC_PREFIX);
     }
 
     /**
-     * Returns the complete 07 11 06 advertisement emitted by the case.
-     * The remaining 16 bytes are encrypted and do not expose wear state.
+     * 07 11 06 is not the public AirPods Proximity format used to decode wear
+     * state. Keep this compatibility method returning empty so older UI code
+     * cannot mistake an unverified Apple Continuity frame for the charging case.
      */
     public static String getAirPodsCaseMessageHex(byte[] scanRecord) {
-        return getSpecificProximityMessageHex(scanRecord, 0x11, 0x06);
+        return "";
     }
 
     private static String getSpecificProximityMessageHex(byte[] scanRecord,
@@ -133,29 +115,18 @@ public final class AirPodsAdvertisementParser {
         while (offset + 2 <= data.length) {
             int type = data[offset] & 0xFF;
             int length = data[offset + 1] & 0xFF;
-            int end = offset + 2 + length;
-            if (end > data.length) {
+            int payloadStart = offset + 2;
+            int end = payloadStart + length;
+
+            if (length == 0 || end > data.length) {
                 break;
             }
             if (type == PROXIMITY_TYPE
                     && length == expectedLength
-                    && (data[offset + 2] & 0xFF) == expectedPayloadPrefix) {
+                    && (data[payloadStart] & 0xFF) == expectedPayloadPrefix) {
                 return toHex(data, offset, end);
             }
-            if (end <= offset) {
-                break;
-            }
             offset = end;
-        }
-
-        // Compatibility with Android stacks that prepend or shift bytes.
-        for (int i = 0; i + 3 <= data.length; i++) {
-            if ((data[i] & 0xFF) == PROXIMITY_TYPE
-                    && (data[i + 1] & 0xFF) == expectedLength
-                    && (data[i + 2] & 0xFF) == expectedPayloadPrefix
-                    && i + 2 + expectedLength <= data.length) {
-                return toHex(data, i, i + 2 + expectedLength);
-            }
         }
         return "";
     }

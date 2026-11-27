@@ -11,7 +11,7 @@ permissions:
 jobs:
   publish:
     if: contains(github.event.head_commit.message, '[publish-release]')
-    name: Build and publish v1.0.7
+    name: Build and publish v1.0.8
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -54,9 +54,9 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.0.7
+          tag_name: v1.0.8
           target_commitish: main
-          name: AirPause v1.0.7
+          name: AirPause v1.0.8
           draft: false
           prerelease: false
           make_latest: true
@@ -83,6 +83,8 @@ jobs:
             **שיפורים בגרסה זו:** הצגת כל בלוק Apple manufacturer עד 31 בתים, הודעת Proximity 07 אחרונה גם אם אינה תואמת בדיוק ל-07 19, עוצמת אות RSSI וכתובת BLE מקוצרת בנפרד להודעות 07 19 ו-07 11 06.
 
             **שיפורים בגרסה זו:** תיקון false-positive בספירת Proximity: הודעת 07 נספרת רק אם האורך והקידומת תואמים למסגרת מלאה 07 19 01 או 07 11 06. נוסף test לנתוני Apple שבהם מופיע 07 38 באורך בלתי אפשרי.
+
+            **שיפורים בגרסה 1.0.8:** פענוח Continuity מחמיר שמקבל רק מסגרת מלאה `07 19 01`; מסגרת `07 11 06` אינה מסווגת עוד כקייס. בחירת פרסומת לפי המשדר החזק והחוזר ביותר בחלון של 10 שניות, שימוש בביטי מצב גם בפרסומות שבהן מסומן משדר מתוך הקייס, ורענון אבחון אחת ל־5 שניות.
 
             **הערה:** זהו APK שנבנה ונחתם במפתח Debug. בדיקות CI עברו, אך הזיהוי הפיזי ופקודות Pause/Play עדיין דורשים אימות על הטלפון והאוזניות בפועל.
           files: artifacts/AirPause-Android4.4.apk

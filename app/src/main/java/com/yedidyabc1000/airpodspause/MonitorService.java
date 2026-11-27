@@ -47,6 +47,8 @@ public class MonitorService extends Service {
     private static final Object LOCK = new Object();
     private static final int STATE_CONFIRMATION_ADVERTISEMENTS = 2;
 
+    private final AirPodsAdvertiserSelector advertiserSelector = new AirPodsAdvertiserSelector();
+
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothProfile a2dpProfile;
     private boolean scanStarted;
@@ -70,7 +72,7 @@ public class MonitorService extends Service {
     private int caseAdvertisementCount;
     private int proximityMessageCount;
     private String latestPodsHex = "עדיין לא נקלט שידור אוזניות 07 19";
-    private String latestCaseHex = "עדיין לא נקלט שידור בפורמט 07 11 06";
+    private String latestCaseHex = "07 11 06 אינו פורמט AirPods מאומת";
     private String latestProximityHex = "עדיין לא נקלטה הודעת Apple מסוג 07";
     private String latestPodsAddress = "";
     private String latestCaseAddress = "";
@@ -115,7 +117,7 @@ public class MonitorService extends Service {
                 }
             }
 
-            mainHandler.postDelayed(this, 10000);
+            mainHandler.postDelayed(this, 5000);
         }
     };
 
@@ -146,6 +148,8 @@ public class MonitorService extends Service {
                     lastBleCallbackAt = now;
                     AirPodsAdvertisementParser.Result result =
                             AirPodsAdvertisementParser.parseScanRecord(scanRecord);
+                    String advertiserAddress = "";
+
                     synchronized (LOCK) {
                         blePacketCount++;
                         lastRssi = rssi;
@@ -160,7 +164,6 @@ public class MonitorService extends Service {
                                 latestProximityHex = anyProximityHex;
                             }
 
-                            String advertiserAddress = "";
                             if (device != null) {
                                 try {
                                     advertiserAddress = device.getAddress();
@@ -192,13 +195,30 @@ public class MonitorService extends Service {
                             airPodsPacketCount++;
                         }
                     }
+
                     if (result == null) {
                         return;
                     }
 
-                    // Do not wait for A2DP profile initialization before processing
-                    // an ear-state advertisement.
-                    processAdvertisement(result);
+                    // Do not establish an ear-state baseline from one stray frame.
+                    // Prefer the strongest repeated AirPods advertiser seen in the
+                    // rolling 10-second window, following the practical selection
+                    // strategy used by OpenPods.
+                    if (advertiserSelector.shouldProcess(advertiserAddress, rssi, now)) {
+                        processAdvertisement(result);
+                    } else {
+                        boolean publishWaiting = false;
+                        synchronized (LOCK) {
+                            if (!hasEarBaseline
+                                    && !"נמצא שידור AirPods — מוודא משדר חוזר וחזק".equals(currentMessage)) {
+                                currentMessage = "נמצא שידור AirPods — מוודא משדר חוזר וחזק";
+                                publishWaiting = true;
+                            }
+                        }
+                        if (publishWaiting) {
+                            publishState();
+                        }
+                    }
                 }
             };
 
@@ -227,7 +247,7 @@ public class MonitorService extends Service {
         super.onCreate();
         mainHandler = new Handler(Looper.getMainLooper());
         resetEarTracking();
-        mainHandler.postDelayed(scanWatchdog, 10000);
+        mainHandler.postDelayed(scanWatchdog, 5000);
         createNotificationChannel();
         startForeground(NOTIFICATION_ID, buildNotification("ממתין לחיבור AirPods"));
 
@@ -348,15 +368,14 @@ public class MonitorService extends Service {
             currentModel = "";
             currentMessage = "סורק לאיתור AirPods Pro 3";
             pausedByAirPause = false;
+            advertiserSelector.reset();
         }
     }
 
     private void processAdvertisement(AirPodsAdvertisementParser.Result result) {
-        // When an AirPod inside the case advertises, its two ear-state bits
-        // describe a different physical broadcaster. Use only out-of-case frames.
-        if (result.broadcasterIsInCase) {
-            return;
-        }
+        // CAPod's dual-pod interpretation uses the in-case bit as part of the
+        // left/right orientation XOR. Keep these complete frames and let that bit
+        // participate in the mapping instead of discarding them outright.
 
         String oldMessage;
         String oldEarState;
@@ -475,7 +494,7 @@ public class MonitorService extends Service {
             diagnostics = "BLE חבילות: " + blePacketCount
                     + " | Apple: " + applePacketCount
                     + " | אוזניות 07 19: " + podsAdvertisementCount
-                    + " | 07 11 06: " + caseAdvertisementCount
+                    + " | 07 11 06 לא מאומת: " + caseAdvertisementCount
                     + " | הודעות Proximity תקינות: " + proximityMessageCount
                     + " | AirPods מפוענחות: " + airPodsPacketCount
                     + " | RSSI אחרון כללי: " + lastRssi
@@ -486,8 +505,7 @@ public class MonitorService extends Service {
             proximityRawHex = latestProximityHex;
             podsInfo = formatAdvertiserInfo(podsAdvertisementCount, latestPodsRssi,
                     latestPodsAddress, latestPodsAt);
-            caseInfo = formatAdvertiserInfo(caseAdvertisementCount, latestCaseRssi,
-                    latestCaseAddress, latestCaseAt);
+            caseInfo = "פורמט לא מאומת — אינו משמש לזיהוי מצב האוזניות";
         }
 
         boolean connected = isA2dpAudioConnected();

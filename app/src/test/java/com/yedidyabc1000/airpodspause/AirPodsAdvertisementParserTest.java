@@ -100,7 +100,7 @@ public class AirPodsAdvertisementParserTest {
     }
 
     @Test
-    public void findsProximityMessageWithUnexpectedPrefix() {
+    public void rejectsProximitySignatureNotAtAContinuityMessageBoundary() {
         byte[] message = message(0x2720, 0x2B);
         byte[] data = new byte[message.length + 3];
         data[0] = 0x11;
@@ -111,9 +111,7 @@ public class AirPodsAdvertisementParserTest {
         AirPodsAdvertisementParser.Result result =
                 AirPodsAdvertisementParser.parseManufacturerData(data);
 
-        assertNotNull(result);
-        assertEquals(0x2720, result.modelCode);
-        assertTrue(result.areBothInEar());
+        assertNull(result);
     }
 
     private byte[] scanRecord(byte[] manufacturerData) {
@@ -130,7 +128,7 @@ public class AirPodsAdvertisementParserTest {
     }
 
     @Test
-    public void separatesPodAndCaseAdvertisements() {
+    public void acceptsOnlyVerifiedPublicAirPodsProximityAdvertisements() {
         byte[] podsRecord = scanRecord(message(0x2720, 0x2B));
         byte[] caseRecord = scanRecord(caseMessage());
 
@@ -139,11 +137,31 @@ public class AirPodsAdvertisementParserTest {
         assertEquals("", AirPodsAdvertisementParser.getAirPodsCaseMessageHex(podsRecord));
 
         assertEquals("", AirPodsAdvertisementParser.getAirPodsPodsMessageHex(caseRecord));
-        assertTrue(AirPodsAdvertisementParser.getAirPodsCaseMessageHex(caseRecord)
-                .startsWith("07 11 06"));
-        assertTrue(AirPodsAdvertisementParser.getAirPodsProximityMessageHex(caseRecord)
-                .startsWith("07 11 06"));
+        assertEquals("", AirPodsAdvertisementParser.getAirPodsCaseMessageHex(caseRecord));
+        assertEquals("", AirPodsAdvertisementParser.getAirPodsProximityMessageHex(caseRecord));
         assertNull(AirPodsAdvertisementParser.parseScanRecord(caseRecord));
+    }
+
+    @Test
+    public void followsReferenceAirPodsPro3WearStateExamples() {
+        AirPodsAdvertisementParser.Result bothInEar =
+                AirPodsAdvertisementParser.parseManufacturerData(message(0x2720, 0x0B));
+        assertNotNull(bothInEar);
+        assertTrue(bothInEar.leftInEar);
+        assertTrue(bothInEar.rightInEar);
+
+        AirPodsAdvertisementParser.Result oneInCase =
+                AirPodsAdvertisementParser.parseManufacturerData(message(0x2720, 0x53));
+        assertNotNull(oneInCase);
+        assertTrue(oneInCase.broadcasterIsInCase);
+        assertTrue(oneInCase.leftInEar);
+        assertFalse(oneInCase.rightInEar);
+    }
+
+    @Test
+    public void doesNotDecodeTheUnverified071106FrameAsAirPods() {
+        byte[] frame = caseMessage();
+        assertNull(AirPodsAdvertisementParser.parseManufacturerData(frame));
     }
 
     @Test

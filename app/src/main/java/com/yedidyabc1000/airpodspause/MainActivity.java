@@ -215,7 +215,7 @@ public class MainActivity extends Activity {
         card.addView(rawScanText, rawParams);
 
         podsScanText = text(
-                "אוזניות 07 19 HEX: עדיין לא נקלט שידור מהאוזניות",
+                "אוזניות 07 19 HEX: עדיין לא נקלט שידור Proximity תקין",
                 10, Color.rgb(164, 210, 190), false);
         podsScanText.setSingleLine(false);
         LinearLayout.LayoutParams podsParams = fullWidth();
@@ -230,14 +230,14 @@ public class MainActivity extends Activity {
         card.addView(podsInfoText, podsInfoParams);
 
         caseScanText = text(
-                "שידור 07 11 06 HEX: עדיין לא נקלט",
+                "מסגרת 07 11 06 (לא מאומתת): אינה משמשת לזיהוי AirPods",
                 10, Color.rgb(164, 190, 210), false);
         caseScanText.setSingleLine(false);
         LinearLayout.LayoutParams caseParams = fullWidth();
         caseParams.topMargin = dp(5);
         card.addView(caseScanText, caseParams);
 
-        caseInfoText = text("07 11 06 — טרם נקלט שידור כזה",
+        caseInfoText = text("07 11 06 — פורמט לא מאומת, אינו משמש לזיהוי מצב הלבישה",
                 10, Color.rgb(164, 190, 210), false);
         caseInfoText.setSingleLine(false);
         LinearLayout.LayoutParams caseInfoParams = fullWidth();
