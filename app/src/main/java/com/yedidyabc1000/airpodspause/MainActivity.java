@@ -38,6 +38,7 @@ public class MainActivity extends Activity {
     private TextView modelText;
     private TextView scanText;
     private TextView rawScanText;
+    private TextView proximityScanText;
     private Button monitorButton;
     private Button resumeButton;
     private SharedPreferences preferences;
@@ -53,6 +54,7 @@ public class MainActivity extends Activity {
             String model = intent.getStringExtra(MonitorService.EXTRA_MODEL);
             String diagnostics = intent.getStringExtra(MonitorService.EXTRA_SCAN_DIAGNOSTICS);
             String rawHex = intent.getStringExtra(MonitorService.EXTRA_SCAN_RAW_HEX);
+            String proximityHex = intent.getStringExtra(MonitorService.EXTRA_PROXIMITY_HEX);
             boolean connected = intent.getBooleanExtra(MonitorService.EXTRA_CONNECTED, false);
             if (message != null) statusText.setText(message);
             connectionText.setText(connected ? "מחובר: התקן שמע Bluetooth"
@@ -74,6 +76,9 @@ public class MainActivity extends Activity {
             }
             if (rawHex != null) {
                 rawScanText.setText("Apple HEX: " + rawHex);
+            }
+            if (proximityHex != null) {
+                proximityScanText.setText("AirPods Proximity 07 HEX: " + proximityHex);
             }
         }
     };
@@ -188,6 +193,14 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams rawParams = fullWidth();
         rawParams.topMargin = dp(5);
         card.addView(rawScanText, rawParams);
+
+        proximityScanText = text(
+                "AirPods Proximity 07 HEX: עדיין לא נקלטה הודעת 07",
+                10, Color.rgb(164, 190, 210), false);
+        proximityScanText.setSingleLine(false);
+        LinearLayout.LayoutParams proximityParams = fullWidth();
+        proximityParams.topMargin = dp(5);
+        card.addView(proximityScanText, proximityParams);
 
         monitorButton = new Button(this);
         monitorButton.setTextSize(18);
