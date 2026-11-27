@@ -16,6 +16,17 @@ public class AirPodsAdvertisementParserTest {
         return data;
     }
 
+    private byte[] caseMessage() {
+        byte[] data = new byte[19];
+        data[0] = 0x07;
+        data[1] = 0x11;
+        data[2] = 0x06;
+        for (int i = 3; i < data.length; i++) {
+            data[i] = (byte) (0x30 + i);
+        }
+        return data;
+    }
+
     @Test
     public void parsesAirPodsPro3WithBothPodsInEar() {
         AirPodsAdvertisementParser.Result result =
