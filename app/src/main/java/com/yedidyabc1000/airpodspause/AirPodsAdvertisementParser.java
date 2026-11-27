@@ -48,16 +48,18 @@ public final class AirPodsAdvertisementParser {
             int payloadStart = offset + 2;
             int messageEnd = payloadStart + length;
 
-            if (length < 7 || messageEnd > data.length) {
+            if (messageEnd > data.length) {
                 break;
             }
 
             if (type == PROXIMITY_TYPE
-                    && length >= 7
+                    && length >= 9
                     && (data[payloadStart] & 0xFF) == PUBLIC_PREFIX) {
                 return parsePublicProximityMessage(data, payloadStart, length);
             }
 
+            // Other Continuity messages may be shorter than the proximity
+            // message; skip them by their advertised length.
             offset = messageEnd;
         }
         return null;
