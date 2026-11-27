@@ -200,7 +200,9 @@ public final class AirPodsAdvertisementParser {
             return "";
         }
         StringBuilder out = new StringBuilder();
-        int count = Math.min(data.length, 18);
+        // Preserve the complete Apple manufacturer block so a later
+        // Continuity message is not lost in the diagnostics view.
+        int count = Math.min(data.length, 31);
         for (int i = 0; i < count; i++) {
             if (i > 0) out.append(' ');
             out.append(String.format("%02X", data[i] & 0xFF));
