@@ -40,6 +40,9 @@ public class MainActivity extends Activity {
     private TextView rawScanText;
     private TextView podsScanText;
     private TextView caseScanText;
+    private TextView proximityRawText;
+    private TextView podsInfoText;
+    private TextView caseInfoText;
     private Button monitorButton;
     private Button resumeButton;
     private SharedPreferences preferences;
@@ -57,6 +60,9 @@ public class MainActivity extends Activity {
             String rawHex = intent.getStringExtra(MonitorService.EXTRA_SCAN_RAW_HEX);
             String podsHex = intent.getStringExtra(MonitorService.EXTRA_PODS_HEX);
             String caseHex = intent.getStringExtra(MonitorService.EXTRA_CASE_HEX);
+            String proximityRawHex = intent.getStringExtra(MonitorService.EXTRA_PROXIMITY_RAW_HEX);
+            String podsInfo = intent.getStringExtra(MonitorService.EXTRA_PODS_INFO);
+            String caseInfo = intent.getStringExtra(MonitorService.EXTRA_CASE_INFO);
             boolean connected = intent.getBooleanExtra(MonitorService.EXTRA_CONNECTED, false);
             if (message != null) statusText.setText(message);
             connectionText.setText(connected ? "מחובר: התקן שמע Bluetooth"
@@ -83,7 +89,16 @@ public class MainActivity extends Activity {
                 podsScanText.setText("אוזניות 07 19 HEX: " + podsHex);
             }
             if (caseHex != null) {
-                caseScanText.setText("קייס 07 11 HEX: " + caseHex);
+                caseScanText.setText("שידור 07 11 06 HEX: " + caseHex);
+            }
+            if (proximityRawHex != null) {
+                proximityRawText.setText("הודעת Apple 07 האחרונה: " + proximityRawHex);
+            }
+            if (podsInfo != null) {
+                podsInfoText.setText("אוזניות 07 19 — " + podsInfo);
+            }
+            if (caseInfo != null) {
+                caseInfoText.setText("07 11 06 — " + caseInfo);
             }
         }
     };
@@ -207,13 +222,34 @@ public class MainActivity extends Activity {
         podsParams.topMargin = dp(5);
         card.addView(podsScanText, podsParams);
 
+        podsInfoText = text("אוזניות 07 19 — טרם נקלט שידור כזה",
+                10, Color.rgb(164, 210, 190), false);
+        podsInfoText.setSingleLine(false);
+        LinearLayout.LayoutParams podsInfoParams = fullWidth();
+        podsInfoParams.topMargin = dp(5);
+        card.addView(podsInfoText, podsInfoParams);
+
         caseScanText = text(
-                "קייס 07 11 HEX: עדיין לא נקלט שידור מהקייס",
+                "שידור 07 11 06 HEX: עדיין לא נקלט",
                 10, Color.rgb(164, 190, 210), false);
         caseScanText.setSingleLine(false);
         LinearLayout.LayoutParams caseParams = fullWidth();
         caseParams.topMargin = dp(5);
         card.addView(caseScanText, caseParams);
+
+        caseInfoText = text("07 11 06 — טרם נקלט שידור כזה",
+                10, Color.rgb(164, 190, 210), false);
+        caseInfoText.setSingleLine(false);
+        LinearLayout.LayoutParams caseInfoParams = fullWidth();
+        caseInfoParams.topMargin = dp(5);
+        card.addView(caseInfoText, caseInfoParams);
+
+        proximityRawText = text("הודעת Apple 07 האחרונה: טרם נקלטה",
+                10, Color.rgb(190, 190, 210), false);
+        proximityRawText.setSingleLine(false);
+        LinearLayout.LayoutParams proximityRawParams = fullWidth();
+        proximityRawParams.topMargin = dp(5);
+        card.addView(proximityRawText, proximityRawParams);
 
         monitorButton = new Button(this);
         monitorButton.setTextSize(18);
