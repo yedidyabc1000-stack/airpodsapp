@@ -38,6 +38,7 @@ public class MainActivity extends Activity {
     private TextView modelText;
     private TextView scanText;
     private TextView rawScanText;
+    private TextView bleRawText;
     private TextView podsScanText;
     private TextView caseScanText;
     private TextView proximityRawText;
@@ -58,6 +59,7 @@ public class MainActivity extends Activity {
             String model = intent.getStringExtra(MonitorService.EXTRA_MODEL);
             String diagnostics = intent.getStringExtra(MonitorService.EXTRA_SCAN_DIAGNOSTICS);
             String rawHex = intent.getStringExtra(MonitorService.EXTRA_SCAN_RAW_HEX);
+            String bleRawHex = intent.getStringExtra(MonitorService.EXTRA_BLE_RAW_HEX);
             String podsHex = intent.getStringExtra(MonitorService.EXTRA_PODS_HEX);
             String caseHex = intent.getStringExtra(MonitorService.EXTRA_CASE_HEX);
             String proximityRawHex = intent.getStringExtra(MonitorService.EXTRA_PROXIMITY_RAW_HEX);
@@ -84,6 +86,9 @@ public class MainActivity extends Activity {
             }
             if (rawHex != null) {
                 rawScanText.setText("Apple HEX: " + rawHex);
+            }
+            if (bleRawHex != null) {
+                bleRawText.setText("BLE HEX אחרון: " + bleRawHex);
             }
             if (podsHex != null) {
                 podsScanText.setText("אוזניות 07 19 HEX: " + podsHex);
@@ -206,6 +211,17 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams scanParams = fullWidth();
         scanParams.topMargin = dp(8);
         card.addView(scanText, scanParams);
+
+        bleRawText = text("BLE HEX אחרון: ממתין לשידור",
+                10, Color.rgb(190, 190, 210), false);
+        bleRawText.setSingleLine(false);
+        if (Build.VERSION.SDK_INT >= 17) {
+            bleRawText.setTextDirection(View.TEXT_DIRECTION_LTR);
+        }
+        bleRawText.setGravity(Gravity.LEFT | Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams bleRawParams = fullWidth();
+        bleRawParams.topMargin = dp(5);
+        card.addView(bleRawText, bleRawParams);
 
         rawScanText = text("Apple HEX: ממתין לפרסומת Apple",
                 10, Color.rgb(126, 147, 176), false);

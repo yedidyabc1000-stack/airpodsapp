@@ -35,6 +35,7 @@ public class MonitorService extends Service {
     public static final String EXTRA_MODEL = "model";
     public static final String EXTRA_SCAN_DIAGNOSTICS = "scan_diagnostics";
     public static final String EXTRA_SCAN_RAW_HEX = "scan_raw_hex";
+    public static final String EXTRA_BLE_RAW_HEX = "ble_raw_hex";
     public static final String EXTRA_PROXIMITY_HEX = "proximity_hex";
     public static final String EXTRA_PODS_HEX = "pods_hex";
     public static final String EXTRA_CASE_HEX = "case_hex";
@@ -81,6 +82,8 @@ public class MonitorService extends Service {
     private long latestPodsAt;
     private long latestCaseAt;
     private int lastRssi;
+    private String latestBleRawHex = "ממתין לדגימת BLE";
+    private int latestBleRawRssi;
     private int scanRecoveryCount;
     private boolean scanRestartPending;
     private String latestAppleHex = "אין עדיין פרסומת Apple";
@@ -153,6 +156,8 @@ public class MonitorService extends Service {
                     synchronized (LOCK) {
                         blePacketCount++;
                         lastRssi = rssi;
+                        latestBleRawHex = formatRawScanRecord(scanRecord);
+                        latestBleRawRssi = rssi;
                         if (AirPodsAdvertisementParser.containsAppleManufacturerData(scanRecord)) {
                             applePacketCount++;
                             latestAppleHex =
@@ -476,12 +481,30 @@ public class MonitorService extends Service {
         publishState();
     }
 
+    private String formatRawScanRecord(byte[] data) {
+        if (data == null || data.length == 0) {
+            return "אין נתונים";
+        }
+        final char[] digits = "0123456789ABCDEF".toCharArray();
+        int count = Math.min(data.length, 31);
+        StringBuilder out = new StringBuilder(count * 3);
+        for (int i = 0; i < count; i++) {
+            if (i > 0) out.append('-');
+            int value = data[i] & 0xFF;
+            out.append(digits[(value >>> 4) & 0x0F]);
+            out.append(digits[value & 0x0F]);
+        }
+        if (data.length > count) out.append("-...");
+        return out.toString();
+    }
+
     private void publishState() {
         final String message;
         final String earState;
         final String model;
         final String diagnostics;
         final String rawHex;
+        final String bleRawHex;
         final String podsHex;
         final String caseHex;
         final String proximityRawHex;
@@ -500,6 +523,7 @@ public class MonitorService extends Service {
                     + " | RSSI אחרון כללי: " + lastRssi
                     + " | אתחולי סריקה: " + scanRecoveryCount;
             rawHex = latestAppleHex;
+            bleRawHex = latestBleRawHex + " | RSSI: " + latestBleRawRssi + " dBm";
             podsHex = latestPodsHex;
             caseHex = latestCaseHex;
             proximityRawHex = latestProximityHex;
@@ -517,6 +541,7 @@ public class MonitorService extends Service {
         update.putExtra(EXTRA_CONNECTED, connected);
         update.putExtra(EXTRA_SCAN_DIAGNOSTICS, diagnostics);
         update.putExtra(EXTRA_SCAN_RAW_HEX, rawHex);
+        update.putExtra(EXTRA_BLE_RAW_HEX, bleRawHex);
         update.putExtra(EXTRA_PROXIMITY_HEX, podsHex.length() > 0 ? podsHex : caseHex);
         update.putExtra(EXTRA_PODS_HEX, podsHex);
         update.putExtra(EXTRA_CASE_HEX, caseHex);
