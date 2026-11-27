@@ -61,8 +61,10 @@ public class MonitorService extends Service {
     private int blePacketCount;
     private int applePacketCount;
     private int airPodsPacketCount;
-    private int proximityMessageCount;
-    private String latestProximityHex = "עדיין לא נקלטה הודעת AirPods מסוג 07";
+    private int podsAdvertisementCount;
+    private int caseAdvertisementCount;
+    private String latestPodsHex = "עדיין לא נקלט שידור אוזניות 07 19";
+    private String latestCaseHex = "עדיין לא נקלט שידור קייס 07 11";
     private int lastRssi;
     private int scanRecoveryCount;
     private boolean scanRestartPending;
@@ -138,11 +140,17 @@ public class MonitorService extends Service {
                             applePacketCount++;
                             latestAppleHex =
                                     AirPodsAdvertisementParser.getAppleManufacturerDataHex(scanRecord);
-                            String proximityHex =
-                                    AirPodsAdvertisementParser.getAirPodsProximityMessageHex(scanRecord);
-                            if (proximityHex.length() > 0) {
-                                proximityMessageCount++;
-                                latestProximityHex = proximityHex;
+                            String podsHex =
+                                    AirPodsAdvertisementParser.getAirPodsPodsMessageHex(scanRecord);
+                            if (podsHex.length() > 0) {
+                                podsAdvertisementCount++;
+                                latestPodsHex = podsHex;
+                            }
+                            String caseHex =
+                                    AirPodsAdvertisementParser.getAirPodsCaseMessageHex(scanRecord);
+                            if (caseHex.length() > 0) {
+                                caseAdvertisementCount++;
+                                latestCaseHex = caseHex;
                             }
                         }
                         if (result != null) {
@@ -420,19 +428,22 @@ public class MonitorService extends Service {
         final String model;
         final String diagnostics;
         final String rawHex;
-        final String proximityHex;
+        final String podsHex;
+        final String caseHex;
         synchronized (LOCK) {
             message = currentMessage;
             earState = currentEarState;
             model = currentModel;
             diagnostics = "BLE חבילות: " + blePacketCount
                     + " | Apple: " + applePacketCount
-                    + " | AirPods: " + airPodsPacketCount
-                    + " | Proximity 07: " + proximityMessageCount
+                    + " | אוזניות 07 19: " + podsAdvertisementCount
+                    + " | קייס 07 11: " + caseAdvertisementCount
+                    + " | AirPods תקינים: " + airPodsPacketCount
                     + " | RSSI: " + lastRssi
                     + " | אתחולי סריקה: " + scanRecoveryCount;
             rawHex = latestAppleHex;
-            proximityHex = latestProximityHex;
+            podsHex = latestPodsHex;
+            caseHex = latestCaseHex;
         }
 
         boolean connected = isA2dpAudioConnected();
