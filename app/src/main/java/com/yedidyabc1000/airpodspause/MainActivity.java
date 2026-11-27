@@ -194,13 +194,21 @@ public class MainActivity extends Activity {
         rawParams.topMargin = dp(5);
         card.addView(rawScanText, rawParams);
 
-        proximityScanText = text(
-                "AirPods Proximity 07 HEX: עדיין לא נקלטה הודעת 07",
+        podsScanText = text(
+                "אוזניות 07 19 HEX: עדיין לא נקלט שידור מהאוזניות",
+                10, Color.rgb(164, 210, 190), false);
+        podsScanText.setSingleLine(false);
+        LinearLayout.LayoutParams podsParams = fullWidth();
+        podsParams.topMargin = dp(5);
+        card.addView(podsScanText, podsParams);
+
+        caseScanText = text(
+                "קייס 07 11 HEX: עדיין לא נקלט שידור מהקייס",
                 10, Color.rgb(164, 190, 210), false);
-        proximityScanText.setSingleLine(false);
-        LinearLayout.LayoutParams proximityParams = fullWidth();
-        proximityParams.topMargin = dp(5);
-        card.addView(proximityScanText, proximityParams);
+        caseScanText.setSingleLine(false);
+        LinearLayout.LayoutParams caseParams = fullWidth();
+        caseParams.topMargin = dp(5);
+        card.addView(caseScanText, caseParams);
 
         monitorButton = new Button(this);
         monitorButton.setTextSize(18);
