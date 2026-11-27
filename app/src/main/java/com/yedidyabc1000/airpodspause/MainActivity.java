@@ -216,8 +216,8 @@ public class MainActivity extends Activity {
         TextView instructions = text(
                 "איך מתחילים?\n"
                         + "1. חבר את ה-AirPods ב-Bluetooth כאוזניות שמע.\n"
-                        + "2. הפעל ניטור והשאר את שתי האוזניות באוזניים לזיהוי הראשוני.\n"
-                        + "3. לאחר הזיהוי, הוצאה של אוזנייה תשלח פקודת עצירה.\n\n"
+                        + "2. הפעל ניטור. הזיהוי מתחיל מיד עם קבלת שידור Bluetooth תקין מה-AirPods.\n"
+                        + "3. לאחר שהאפליקציה רואה את שתי האוזניות באוזניים, הוצאה של אחת מהן תשלח פקודת עצירה.\n\n"
                         + "ב-Android 6 ומעלה יש לאשר הרשאת מיקום לסריקת Bluetooth. האפליקציה אינה משתמשת במיקום.",
                 14, Color.rgb(172, 187, 207), false);
         instructions.setGravity(Gravity.RIGHT);
