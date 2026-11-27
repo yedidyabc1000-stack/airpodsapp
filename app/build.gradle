@@ -10,7 +10,7 @@ android {
         applicationId "com.yedidyabc1000.airpodspause"
         minSdk 19
         targetSdk 28
-        versionCode 5
+        versionCode 6
         versionName "1.0.5"
         testInstrumentationRunner "android.test.InstrumentationTestRunner"
     }
