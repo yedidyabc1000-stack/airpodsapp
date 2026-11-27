@@ -86,6 +86,57 @@ public final class AirPodsAdvertisementParser {
         return null;
     }
 
+    /**
+     * Returns the first Apple Continuity Proximity Pairing (type 0x07) message.
+     * Nearby Info (0x10), Handoff (0x0C), AirDrop (0x05) and other Apple
+     * messages are intentionally excluded.
+     */
+    public static String getAirPodsProximityMessageHex(byte[] scanRecord) {
+        byte[] data = findAppleManufacturerData(scanRecord);
+        if (data == null) {
+            return "";
+        }
+
+        int offset = 0;
+        while (offset + 2 <= data.length) {
+            int type = data[offset] & 0xFF;
+            int length = data[offset + 1] & 0xFF;
+            int end = offset + 2 + length;
+            if (end > data.length) {
+                break;
+            }
+            if (type == PROXIMITY_TYPE) {
+                return toHex(data, offset, end);
+            }
+            if (end <= offset) {
+                break;
+            }
+            offset = end;
+        }
+
+        // Fallback for legacy stacks that shift or prepend bytes.
+        for (int i = 0; i + 2 <= data.length; i++) {
+            if ((data[i] & 0xFF) == PROXIMITY_TYPE
+                    && i + 1 < data.length) {
+                int length = data[i + 1] & 0xFF;
+                int end = Math.min(data.length, i + 2 + length);
+                if (length > 0) {
+                    return toHex(data, i, end);
+                }
+            }
+        }
+        return "";
+    }
+
+    private static String toHex(byte[] data, int start, int end) {
+        StringBuilder out = new StringBuilder();
+        for (int i = start; i < end; i++) {
+            if (out.length() > 0) out.append(' ');
+            out.append(String.format("%02X", data[i] & 0xFF));
+        }
+        return out.toString();
+    }
+
     /** Returns a short hex sample of Apple's manufacturer section for diagnostics. */
     public static String getAppleManufacturerDataHex(byte[] scanRecord) {
         byte[] data = findAppleManufacturerData(scanRecord);
