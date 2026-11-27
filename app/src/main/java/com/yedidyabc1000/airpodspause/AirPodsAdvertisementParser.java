@@ -46,6 +46,7 @@ public final class AirPodsAdvertisementParser {
             return null;
         }
 
+        // First try the normal length-prefixed Continuity message layout.
         int offset = 0;
         while (offset + 2 <= data.length) {
             int type = data[offset] & 0xFF;
@@ -63,11 +64,42 @@ public final class AirPodsAdvertisementParser {
                 return parsePublicProximityMessage(data, payloadStart, length);
             }
 
+            if (messageEnd <= offset) {
+                break;
+            }
             // Other Continuity messages may be shorter than the proximity
             // message; skip them by their advertised length.
             offset = messageEnd;
         }
+
+        // Some older Bluetooth stacks expose manufacturer bytes with an
+        // unexpected prefix or a shifted boundary. As a compatibility fallback,
+        // look for the complete 07 19 01 proximity signature inside the block.
+        for (int i = 0; i + 11 <= data.length; i++) {
+            if ((data[i] & 0xFF) == PROXIMITY_TYPE
+                    && (data[i + 1] & 0xFF) == PROXIMITY_LENGTH
+                    && (data[i + 2] & 0xFF) == PUBLIC_PREFIX
+                    && i + 2 + PROXIMITY_LENGTH <= data.length) {
+                return parsePublicProximityMessage(data, i + 2, PROXIMITY_LENGTH);
+            }
+        }
         return null;
+    }
+
+    /** Returns a short hex sample of Apple's manufacturer section for diagnostics. */
+    public static String getAppleManufacturerDataHex(byte[] scanRecord) {
+        byte[] data = findAppleManufacturerData(scanRecord);
+        if (data == null) {
+            return "";
+        }
+        StringBuilder out = new StringBuilder();
+        int count = Math.min(data.length, 18);
+        for (int i = 0; i < count; i++) {
+            if (i > 0) out.append(' ');
+            out.append(String.format("%02X", data[i] & 0xFF));
+        }
+        if (data.length > count) out.append(" ...");
+        return out.toString();
     }
 
     private static Result parsePublicProximityMessage(byte[] data,
