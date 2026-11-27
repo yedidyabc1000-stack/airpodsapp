@@ -37,13 +37,16 @@ public class MonitorService extends Service {
     private static final String CHANNEL_ID = "airpause_monitor";
     private static final int NOTIFICATION_ID = 4107;
     private static final Object LOCK = new Object();
+    private static final int STATE_CONFIRMATION_ADVERTISEMENTS = 2;
 
     private BluetoothAdapter bluetoothAdapter;
     private BluetoothProfile a2dpProfile;
     private boolean scanStarted;
     private boolean receiverRegistered;
-    private boolean hasSeenBothInEar;
+    private boolean hasEarBaseline;
     private boolean lastBothInEar;
+    private boolean candidateBothInEar;
+    private int candidateSampleCount;
     private boolean pausedByAirPause;
     private String currentMessage = "מאתחל ניטור";
     private String currentEarState = "UNKNOWN";
@@ -80,11 +83,9 @@ public class MonitorService extends Service {
                         return;
                     }
 
-                    if (!isA2dpAudioConnected()) {
-                        setMessage("ממתין לחיבור AirPods כאוזניות שמע");
-                        return;
-                    }
-
+                    // BLE presence and wear state are independent of A2DP profile
+                    // initialization. Do not delay detection while Android is still
+                    // bringing the audio profile up.
                     processAdvertisement(result);
                 }
             };
@@ -177,6 +178,7 @@ public class MonitorService extends Service {
             return;
         }
 
+        resetEarTracking();
         try {
             scanStarted = bluetoothAdapter.startLeScan(scanCallback);
             if (scanStarted) {
@@ -220,7 +222,22 @@ public class MonitorService extends Service {
         }
     }
 
+    private void resetEarTracking() {
+        synchronized (LOCK) {
+            hasEarBaseline = false;
+            lastBothInEar = false;
+            candidateBothInEar = false;
+            candidateSampleCount = 0;
+            currentEarState = "UNKNOWN";
+            currentModel = "";
+            currentMessage = "סורק לאיתור AirPods Pro 3";
+            pausedByAirPause = false;
+        }
+    }
+
     private void processAdvertisement(AirPodsAdvertisementParser.Result result) {
+        // When an AirPod inside the case advertises, its two ear-state bits
+        // describe a different physical broadcaster. Use only out-of-case frames.
         if (result.broadcasterIsInCase) {
             return;
         }
@@ -229,40 +246,58 @@ public class MonitorService extends Service {
             currentModel = result.modelName;
             boolean bothInEar = result.areBothInEar();
 
-            if (bothInEar) {
-                if (!hasSeenBothInEar) {
-                    hasSeenBothInEar = true;
-                    lastBothInEar = true;
-                    currentEarState = "WORN";
-                    currentMessage = "שתי האוזניות זוהו באוזניים";
-                } else if (!lastBothInEar) {
-                    lastBothInEar = true;
-                    currentEarState = "WORN";
-                    boolean autoResume = getSharedPreferences(MainActivity.PREFS,
-                            MODE_PRIVATE).getBoolean(MainActivity.PREF_AUTO_RESUME, true);
-                    if (pausedByAirPause && autoResume) {
-                        sendMediaKey(KeyEvent.KEYCODE_MEDIA_PLAY);
-                        currentMessage = "האוזניות הוחזרו — המוזיקה חודשה";
-                    } else {
-                        currentMessage = "שתי האוזניות זוהו באוזניים";
-                    }
-                    pausedByAirPause = false;
-                } else {
-                    currentEarState = "WORN";
-                }
+            // Establish the baseline from the very first valid BLE packet. We no
+            // longer force the user to wait until both buds have first been seen
+            // in-ear before the app can report that the AirPods were detected.
+            if (!hasEarBaseline) {
+                hasEarBaseline = true;
+                lastBothInEar = bothInEar;
+                candidateBothInEar = bothInEar;
+                candidateSampleCount = 0;
+                currentEarState = bothInEar ? "WORN" : "OUT";
+                currentMessage = bothInEar
+                        ? "AirPods Pro 3 זוהו — שתי האוזניות באוזניים"
+                        : "AirPods Pro 3 זוהו — הכנס את שתי האוזניות לאוזניים";
+            } else if (bothInEar == lastBothInEar) {
+                // A frame matching the stable state cancels a transient candidate.
+                candidateSampleCount = 0;
+                currentEarState = lastBothInEar ? "WORN" : "OUT";
             } else {
-                currentEarState = "OUT";
-                if (!hasSeenBothInEar) {
-                    currentMessage = "הכנס את שתי האוזניות לאוזניים לזיהוי ראשוני";
-                } else if (lastBothInEar) {
-                    lastBothInEar = false;
-                    AudioManager audio = (AudioManager) getSystemService(AUDIO_SERVICE);
-                    boolean wasPlaying = audio != null && audio.isMusicActive();
-                    sendMediaKey(KeyEvent.KEYCODE_MEDIA_PAUSE);
-                    pausedByAirPause = wasPlaying;
-                    currentMessage = "אוזנייה הוצאה — נשלחה פקודת עצירה";
+                // Confirm a real change with two consecutive public advertisements.
+                // This filters isolated BLE frames without adding a long polling delay.
+                if (candidateSampleCount == 0 || candidateBothInEar != bothInEar) {
+                    candidateBothInEar = bothInEar;
+                    candidateSampleCount = 1;
                 } else {
-                    currentMessage = "האוזניות מחוץ למצב לבישה מלא";
+                    candidateSampleCount++;
+                }
+
+                if (candidateSampleCount >= STATE_CONFIRMATION_ADVERTISEMENTS) {
+                    boolean wasBothInEar = lastBothInEar;
+                    lastBothInEar = bothInEar;
+                    candidateSampleCount = 0;
+                    currentEarState = bothInEar ? "WORN" : "OUT";
+
+                    if (wasBothInEar && !bothInEar) {
+                        AudioManager audio = (AudioManager) getSystemService(AUDIO_SERVICE);
+                        boolean wasPlaying = audio != null && audio.isMusicActive();
+                        sendMediaKey(KeyEvent.KEYCODE_MEDIA_PAUSE);
+                        pausedByAirPause = wasPlaying;
+                        currentMessage = "אוזנייה הוצאה — נשלחה פקודת עצירה";
+                    } else if (!wasBothInEar && bothInEar) {
+                        boolean autoResume = getSharedPreferences(MainActivity.PREFS,
+                                MODE_PRIVATE).getBoolean(MainActivity.PREF_AUTO_RESUME, true);
+                        if (pausedByAirPause && autoResume) {
+                            sendMediaKey(KeyEvent.KEYCODE_MEDIA_PLAY);
+                            currentMessage = "האוזניות הוחזרו — המוזיקה חודשה";
+                        } else {
+                            currentMessage = "שתי האוזניות זוהו באוזניים";
+                        }
+                        pausedByAirPause = false;
+                    }
+                } else {
+                    currentEarState = bothInEar ? "WORN" : "OUT";
+                    currentMessage = "ממתין לאימות שינוי במצב הלבישה";
                 }
             }
         }
@@ -279,7 +314,7 @@ public class MonitorService extends Service {
         try {
             audio.dispatchMediaKeyEvent(new KeyEvent(now, now,
                     KeyEvent.ACTION_DOWN, keyCode, 0));
-            audio.dispatchMediaKeyEvent(new KeyEvent(now, now,
+            audio.dispatchMediaKeyEvent(new KeyEvent(now + 1, now + 1,
                     KeyEvent.ACTION_UP, keyCode, 0));
         } catch (RuntimeException ignored) {
         }
