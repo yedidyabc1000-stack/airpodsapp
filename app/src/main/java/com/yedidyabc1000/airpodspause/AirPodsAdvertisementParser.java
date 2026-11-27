@@ -91,41 +91,17 @@ public final class AirPodsAdvertisementParser {
      * Nearby Info (0x10), Handoff (0x0C), AirDrop (0x05) and other Apple
      * messages are intentionally excluded.
      */
+    /**
+     * Returns only a complete, signature-validated AirPods proximity frame.
+     * A random 0x07 byte inside manufacturer data is not sufficient evidence:
+     * the Continuity length and the format-specific public prefix must match.
+     */
     public static String getAirPodsProximityMessageHex(byte[] scanRecord) {
-        byte[] data = findAppleManufacturerData(scanRecord);
-        if (data == null) {
-            return "";
+        String podsMessage = getAirPodsPodsMessageHex(scanRecord);
+        if (podsMessage.length() > 0) {
+            return podsMessage;
         }
-
-        int offset = 0;
-        while (offset + 2 <= data.length) {
-            int type = data[offset] & 0xFF;
-            int length = data[offset + 1] & 0xFF;
-            int end = offset + 2 + length;
-            if (end > data.length) {
-                break;
-            }
-            if (type == PROXIMITY_TYPE) {
-                return toHex(data, offset, end);
-            }
-            if (end <= offset) {
-                break;
-            }
-            offset = end;
-        }
-
-        // Fallback for legacy stacks that shift or prepend bytes.
-        for (int i = 0; i + 2 <= data.length; i++) {
-            if ((data[i] & 0xFF) == PROXIMITY_TYPE
-                    && i + 1 < data.length) {
-                int length = data[i + 1] & 0xFF;
-                int end = Math.min(data.length, i + 2 + length);
-                if (length > 0) {
-                    return toHex(data, i, end);
-                }
-            }
-        }
-        return "";
+        return getAirPodsCaseMessageHex(scanRecord);
     }
 
     /**
