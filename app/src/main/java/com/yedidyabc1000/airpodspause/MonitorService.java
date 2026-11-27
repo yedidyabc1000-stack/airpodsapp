@@ -36,6 +36,8 @@ public class MonitorService extends Service {
     public static final String EXTRA_SCAN_DIAGNOSTICS = "scan_diagnostics";
     public static final String EXTRA_SCAN_RAW_HEX = "scan_raw_hex";
     public static final String EXTRA_PROXIMITY_HEX = "proximity_hex";
+    public static final String EXTRA_PODS_HEX = "pods_hex";
+    public static final String EXTRA_CASE_HEX = "case_hex";
 
     private static final String CHANNEL_ID = "airpause_monitor";
     private static final int NOTIFICATION_ID = 4107;
