@@ -38,7 +38,8 @@ public class MainActivity extends Activity {
     private TextView modelText;
     private TextView scanText;
     private TextView rawScanText;
-    private TextView proximityScanText;
+    private TextView podsScanText;
+    private TextView caseScanText;
     private Button monitorButton;
     private Button resumeButton;
     private SharedPreferences preferences;
@@ -54,7 +55,8 @@ public class MainActivity extends Activity {
             String model = intent.getStringExtra(MonitorService.EXTRA_MODEL);
             String diagnostics = intent.getStringExtra(MonitorService.EXTRA_SCAN_DIAGNOSTICS);
             String rawHex = intent.getStringExtra(MonitorService.EXTRA_SCAN_RAW_HEX);
-            String proximityHex = intent.getStringExtra(MonitorService.EXTRA_PROXIMITY_HEX);
+            String podsHex = intent.getStringExtra(MonitorService.EXTRA_PODS_HEX);
+            String caseHex = intent.getStringExtra(MonitorService.EXTRA_CASE_HEX);
             boolean connected = intent.getBooleanExtra(MonitorService.EXTRA_CONNECTED, false);
             if (message != null) statusText.setText(message);
             connectionText.setText(connected ? "מחובר: התקן שמע Bluetooth"
@@ -77,8 +79,11 @@ public class MainActivity extends Activity {
             if (rawHex != null) {
                 rawScanText.setText("Apple HEX: " + rawHex);
             }
-            if (proximityHex != null) {
-                proximityScanText.setText("AirPods Proximity 07 HEX: " + proximityHex);
+            if (podsHex != null) {
+                podsScanText.setText("אוזניות 07 19 HEX: " + podsHex);
+            }
+            if (caseHex != null) {
+                caseScanText.setText("קייס 07 11 HEX: " + caseHex);
             }
         }
     };
