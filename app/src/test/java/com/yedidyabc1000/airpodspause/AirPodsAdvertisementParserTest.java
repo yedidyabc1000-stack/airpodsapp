@@ -89,6 +89,23 @@ public class AirPodsAdvertisementParserTest {
     }
 
     @Test
+    public void findsProximityMessageWithUnexpectedPrefix() {
+        byte[] message = message(0x2720, 0x2B);
+        byte[] data = new byte[message.length + 3];
+        data[0] = 0x11;
+        data[1] = 0x22;
+        data[2] = 0x33;
+        System.arraycopy(message, 0, data, 3, message.length);
+
+        AirPodsAdvertisementParser.Result result =
+                AirPodsAdvertisementParser.parseManufacturerData(data);
+
+        assertNotNull(result);
+        assertEquals(0x2720, result.modelCode);
+        assertTrue(result.areBothInEar());
+    }
+
+    @Test
     public void skipsNonProximityAppleMessageAndFindsProximityMessage() {
         byte[] first = message(0x2720, 0x2B);
         byte[] data = new byte[first.length + 4];
