@@ -105,6 +105,42 @@ public class AirPodsAdvertisementParserTest {
         assertTrue(result.areBothInEar());
     }
 
+    private byte[] scanRecord(byte[] manufacturerData) {
+        byte[] record = new byte[3 + 1 + 1 + 2 + manufacturerData.length];
+        record[0] = 0x02;
+        record[1] = 0x01;
+        record[2] = 0x06;
+        record[3] = (byte) (manufacturerData.length + 3);
+        record[4] = (byte) 0xFF;
+        record[5] = 0x4C;
+        record[6] = 0x00;
+        System.arraycopy(manufacturerData, 0, record, 7, manufacturerData.length);
+        return record;
+    }
+
+    @Test
+    public void genericAppleNearbyInfoIsNotCountedAsAirPodsProximity() {
+        byte[] nearbyInfo = new byte[]{
+                0x10, 0x06, 0x0B, 0x1D, (byte) 0xE5, 0x25, 0x01, 0x48
+        };
+        byte[] record = scanRecord(nearbyInfo);
+
+        assertTrue(AirPodsAdvertisementParser.containsAppleManufacturerData(record));
+        assertEquals("", AirPodsAdvertisementParser.getAirPodsProximityMessageHex(record));
+        assertNull(AirPodsAdvertisementParser.parseScanRecord(record));
+    }
+
+    @Test
+    public void identifiesAirPodsProximityMessageSeparately() {
+        byte[] proximity = message(0x2720, 0x2B);
+        byte[] record = scanRecord(proximity);
+
+        String hex = AirPodsAdvertisementParser.getAirPodsProximityMessageHex(record);
+
+        assertTrue(hex.startsWith("07 19 01 27 20 2B"));
+        assertNotNull(AirPodsAdvertisementParser.parseScanRecord(record));
+    }
+
     @Test
     public void skipsNonProximityAppleMessageAndFindsProximityMessage() {
         byte[] first = message(0x2720, 0x2B);
