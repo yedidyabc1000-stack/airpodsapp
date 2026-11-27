@@ -23,6 +23,11 @@ public final class AirPodsAdvertisementParser {
     private AirPodsAdvertisementParser() {
     }
 
+    /** Returns whether the scan record includes Apple's manufacturer-data section. */
+    public static boolean containsAppleManufacturerData(byte[] scanRecord) {
+        return findAppleManufacturerData(scanRecord) != null;
+    }
+
     public static Result parseScanRecord(byte[] scanRecord) {
         byte[] manufacturerData = findAppleManufacturerData(scanRecord);
         if (manufacturerData == null) {
