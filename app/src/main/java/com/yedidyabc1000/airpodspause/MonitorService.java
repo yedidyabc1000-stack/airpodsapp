@@ -34,6 +34,7 @@ public class MonitorService extends Service {
     public static final String EXTRA_CONNECTED = "connected";
     public static final String EXTRA_MODEL = "model";
     public static final String EXTRA_SCAN_DIAGNOSTICS = "scan_diagnostics";
+    public static final String EXTRA_SCAN_RAW_HEX = "scan_raw_hex";
 
     private static final String CHANNEL_ID = "airpause_monitor";
     private static final int NOTIFICATION_ID = 4107;
@@ -62,6 +63,7 @@ public class MonitorService extends Service {
     private int lastRssi;
     private int scanRecoveryCount;
     private boolean scanRestartPending;
+    private String latestAppleHex = "אין עדיין פרסומת Apple";
 
     private final Runnable scanWatchdog = new Runnable() {
         @Override
@@ -131,6 +133,8 @@ public class MonitorService extends Service {
                         lastRssi = rssi;
                         if (AirPodsAdvertisementParser.containsAppleManufacturerData(scanRecord)) {
                             applePacketCount++;
+                            latestAppleHex =
+                                    AirPodsAdvertisementParser.getAppleManufacturerDataHex(scanRecord);
                         }
                         if (result != null) {
                             airPodsPacketCount++;
@@ -406,6 +410,7 @@ public class MonitorService extends Service {
         final String earState;
         final String model;
         final String diagnostics;
+        final String rawHex;
         synchronized (LOCK) {
             message = currentMessage;
             earState = currentEarState;
@@ -415,6 +420,7 @@ public class MonitorService extends Service {
                     + " | AirPods: " + airPodsPacketCount
                     + " | RSSI: " + lastRssi
                     + " | אתחולי סריקה: " + scanRecoveryCount;
+            rawHex = latestAppleHex;
         }
 
         boolean connected = isA2dpAudioConnected();
@@ -425,6 +431,7 @@ public class MonitorService extends Service {
         update.putExtra(EXTRA_MODEL, model);
         update.putExtra(EXTRA_CONNECTED, connected);
         update.putExtra(EXTRA_SCAN_DIAGNOSTICS, diagnostics);
+        update.putExtra(EXTRA_SCAN_RAW_HEX, rawHex);
         sendBroadcast(update);
 
         if (mainHandler != null) {
